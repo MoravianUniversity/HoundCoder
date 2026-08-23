@@ -61,6 +61,27 @@ Each token row also has a "Continue config" button that downloads [continue-conf
 
 Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, and the request line (method + path).
 
+## Updating the production server
+
+```bash
+# Note: run as root (or with sudo)
+cd /opt/hound-coder
+git pull   # nginx config, systemd units, and docker-compose.yaml are symlinked, so this updates them in place
+
+# Pick up systemd unit file changes, if any
+systemctl daemon-reload
+
+# Reload nginx config (no downtime)
+nginx -t && systemctl reload nginx
+
+# Pick up auth-server code/dependency changes
+auth-server/venv/bin/pip install -r auth-server/requirements.txt
+systemctl restart hound-coder-auth.service
+
+# Pick up docker-compose.yaml changes (only recreates containers whose config actually changed)
+docker compose -f docker-compose.yaml up -d
+```
+
 # Benchmarking
 
 To benchmark the individual servers: (takes about 45 seconds for the tab-complete one and 6 minutes for the agent one; should run twice as the first time is definitely slower)
