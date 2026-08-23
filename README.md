@@ -14,8 +14,8 @@ git clone git@github.com:MoravianUniversity/HoundCoder.git hound-coder
 cd hound-coder
 
 # 'Install' files
-cp hound-coder-vllm.service /etc/systemd/system/hound-coder-vllm.service
-cp hound-coder-auth.service /etc/systemd/system/hound-coder-auth.service
+ln -s $PWD/hound-coder-vllm.service /etc/systemd/system/hound-coder-vllm.service
+ln -s $PWD/hound-coder-auth.service /etc/systemd/system/hound-coder-auth.service
 
 # Register and enable the hound-coder vLLM service to start on boot
 systemctl daemon-reload
@@ -29,11 +29,11 @@ venv/bin/pip install -r requirements.txt
 cd ..
 
 # Seed the first admin user; save the printed JWT, it's your admin token (needed to reach /admin/)
-AUTH_DATA_DIR=/opt/hound-coder/auth auth-server/venv/bin/python auth-server/bootstrap.py --email you@example.com
+AUTH_DATA_DIR=$PWD/auth auth-server/venv/bin/python auth-server/bootstrap.py --email you@example.com
 systemctl enable --now hound-coder-auth.service
 
 # Copy nginx config
-cp hound-coder.conf /etc/nginx/sites-available/hound-coder.conf
+ln -s $PWD/hound-coder.conf /etc/nginx/sites-available/hound-coder.conf
 ln -s /etc/nginx/sites-available/hound-coder.conf /etc/nginx/sites-enabled/hound-coder.conf
 rm -f /etc/nginx/sites-enabled/default
 systemctl enable nginx
