@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hound Coder Auth Admin</title>
+<style>
+  body { font-family: sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+  code { word-break: break-all; }
+  .revoked { color: #999; text-decoration: line-through; }
+  button { cursor: pointer; }
+  #token-box { width: 100%; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<h1>Hound Coder Auth Admin</h1>
+
+<label>Your admin bearer token:
+  <input id="token-box" type="password" placeholder="paste your admin JWT here">
+</label>
+<button id="save-token">Save</button>
+<button id="refresh">Refresh</button>
+
+<h2>Add user</h2>
+<input id="new-email" type="email" placeholder="email@example.com">
+<label><input id="new-is-admin" type="checkbox"> admin</label>
+<button id="add-user">Add</button>
+
+<div id="error" style="color:red"></div>
+<div id="users"></div>
+
+<script>
+const tokenBox = document.getElementById('token-box');
+tokenBox.value = localStorage.getItem('houndCoderAdminToken') || '';
+
+document.getElementById('save-token').onclick = () => {
+  localStorage.setItem('houndCoderAdminToken', tokenBox.value);
+  loadUsers();
+};
+document.getElementById('refresh').onclick = loadUsers;
+document.getElementById('add-user').onclick = addUser;
+
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + (localStorage.getItem('houndCoderAdminToken') || '') };
+}
+
+async function api(path, options = {}) {
+  const res = await fetch('/admin/api' + path, {
+    ...options,
+    headers: { ...authHeaders(), 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  if (!res.ok) {
+    throw new Error((await res.text()) || res.statusText);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadUsers() {
+  const errorEl = document.getElementById('error');
+  errorEl.textContent = '';
+  try {
+    const users = await api('/users');
+    render(users);
+  } catch (e) {
+    errorEl.textContent = 'Failed to load users: ' + e.message;
+  }
+}
+
+function render(users) {
+  const container = document.getElementById('users');
+  container.innerHTML = '';
+  for (const user of users) {
+    const section = document.createElement('div');
+    const tokenRows = user.tokens.map(t => `
+      <tr>
+        <td>${new Date(t.issue_date * 1000).toLocaleString()}</td>
+        <td class="${t.revoked ? 'revoked' : ''}"><code>${t.token}</code></td>
+        <td>${t.revoked ? 'revoked' : `<button data-email="${user.email}" data-issue="${t.issue_date}" class="revoke">Revoke</button>`}</td>
+      </tr>`).join('');
+    section.innerHTML = `
+      <h3>${user.email} ${user.is_admin ? '(admin)' : ''}</h3>
+      <button data-email="${user.email}" data-admin="${!user.is_admin}" class="toggle-admin">
+        ${user.is_admin ? 'Revoke admin' : 'Make admin'}
+      </button>
+      <button data-email="${user.email}" class="issue-token">Issue new token</button>
+      <button data-email="${user.email}" class="remove-user">Remove user</button>
+      <table><thead><tr><th>Issued</th><th>Token</th><th></th></tr></thead><tbody>${tokenRows}</tbody></table>
+    `;
+    container.appendChild(section);
+  }
+
+  container.querySelectorAll('.toggle-admin').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    await api(`/users/${encodeURIComponent(btn.dataset.email)}`, {
+      method: 'PATCH', body: JSON.stringify({ is_admin: btn.dataset.admin === 'true' }),
+    });
+    loadUsers();
+  }));
+  container.querySelectorAll('.issue-token').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    await api(`/users/${encodeURIComponent(btn.dataset.email)}/tokens`, { method: 'POST' });
+    loadUsers();
+  }));
+  container.querySelectorAll('.remove-user').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    if (!confirm(`Remove ${btn.dataset.email}? This revokes all their tokens.`)) return;
+    await api(`/users/${encodeURIComponent(btn.dataset.email)}`, { method: 'DELETE' });
+    loadUsers();
+  }));
+  container.querySelectorAll('.revoke').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    await api(`/users/${encodeURIComponent(btn.dataset.email)}/tokens/${btn.dataset.issue}/revoke`, { method: 'POST' });
+    loadUsers();
+  }));
+}
+
+async function withErrorAlert(fn) {
+  try {
+    await fn();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+function addUser() {
+  withErrorAlert(async () => {
+    const email = document.getElementById('new-email').value.trim();
+    const isAdmin = document.getElementById('new-is-admin').checked;
+    if (!email) return;
+    await api('/users', { method: 'POST', body: JSON.stringify({ email, is_admin: isAdmin }) });
+    document.getElementById('new-email').value = '';
+    loadUsers();
+  });
+}
+
+loadUsers();
+</script>
+</body>
+</html>

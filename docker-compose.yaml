@@ -1,0 +1,81 @@
+# /opt/hound-coder/docker-compose.yaml
+services:
+  agent:
+    # Pinned from vllm/vllm-openai:latest as pulled 2026-08-21 —
+    # verified working with Intel Qwen3-Coder-30B-A3B-Instruct-int4-AutoRound,
+    # Marlin WNA16 MoE backend, qwen3_xml tool parser.
+    image: vllm/vllm-openai@sha256:ffb2d59b1c059a5bd8d781320c9f5189de8293693b7d95da54befddaa54abf52
+    container_name: hound-coder-agent
+    restart: unless-stopped
+    runtime: nvidia
+    ipc: host
+    ports:
+      - "8002:8002"
+    volumes:
+      - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
+    # Uses a quantized model (INT4) which is 3x faster than original (Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8) but may be a little rough in some cases
+    # Eventually, should try NVFP4 version (e.g. https://huggingface.co/NVFP4/Qwen3-Coder-30B-A3B-Instruct-FP4) once that tooling is more robust on our machine - should have the speedup of INT4 without as many rough edges
+    command: >
+      Intel/Qwen3-Coder-30B-A3B-Instruct-int4-AutoRound
+      --port 8002
+      --gpu-memory-utilization 0.60
+      --max-model-len 32768
+      --max-num-seqs 8
+      --max-num-batched-tokens 8192
+      --enable-prefix-caching
+      --enable-auto-tool-choice
+      --tool-call-parser qwen3_xml
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/v1/models"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 360s   # generous — model load + kernel warmup takes a while, don't let docker kill it mid-load
+
+  tab-complete:
+    # Pinned from vllm/vllm-openai:latest as pulled 2026-08-21
+    image: vllm/vllm-openai@sha256:ffb2d59b1c059a5bd8d781320c9f5189de8293693b7d95da54befddaa54abf52
+    container_name: hound-coder-tab-complete
+    restart: unless-stopped
+    runtime: nvidia
+    ipc: host
+    ports:
+      - "8001:8001"
+    volumes:
+      - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
+    # TODO: try "Qwen/Qwen2.5-Coder-1.5B" as speculative model (but has a vocab size mismatch, see https://github.com/vllm-project/vllm/issues/5203, should likely also increase the num_speculative_tokens to 5 or so)
+    command: >
+      Qwen/Qwen2.5-Coder-7B
+      --port 8001
+      --quantization fp8
+      --gpu-memory-utilization 0.2558
+      --max-model-len 4096
+      --max-num-seqs 64
+      --max-num-batched-tokens 4096
+      --enable-prefix-caching
+      --enable-chunked-prefill
+      --kv-cache-dtype auto
+      --speculative-config '{"model":"ngram","num_speculative_tokens":3,"prompt_lookup_min":2,"prompt_lookup_max":4}'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    depends_on:
+      agent:
+        condition: service_healthy   # enforces staggered-startup
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/v1/models"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s

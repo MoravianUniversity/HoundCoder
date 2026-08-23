@@ -1,0 +1,14 @@
+# /etc/systemd/system/hound-coder-auth.service
+[Unit]
+Description=Hound Coder JWT auth server (token validation + admin API)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hound-coder/auth-server
+ExecStart=/opt/hound-coder/auth-server/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8003
+Restart=on-failure
+Environment=AUTH_DATA_DIR=/opt/hound-coder/auth
+
+[Install]
+WantedBy=multi-user.target
