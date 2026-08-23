@@ -1,4 +1,6 @@
 """FastAPI dependencies for validating bearer tokens and admin access."""
+from dataclasses import dataclass
+
 from fastapi import Depends, Header, HTTPException, status
 import jwt
 
@@ -6,7 +8,14 @@ from . import db
 from .security import decode_jwt
 
 
-def get_current_user(authorization: str | None = Header(default=None)) -> db.User:
+@dataclass
+class AuthContext:
+    email: str
+    is_admin: bool
+    issue_date: int
+
+
+def get_current_user(authorization: str | None = Header(default=None)) -> AuthContext:
     if not authorization or not authorization.lower().startswith("bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")
     token = authorization.split(" ", 1)[1]
@@ -27,10 +36,11 @@ def get_current_user(authorization: str | None = Header(default=None)) -> db.Use
     if token_row is None or token_row.revoked:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token revoked")
 
-    return user
+    return AuthContext(email=user.email, is_admin=user.is_admin, issue_date=issue_date)
 
 
-def require_admin(user: db.User = Depends(get_current_user)) -> db.User:
-    if not user.is_admin:
+def require_admin(ctx: AuthContext = Depends(get_current_user)) -> AuthContext:
+    if not ctx.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
-    return user
+    return ctx
+

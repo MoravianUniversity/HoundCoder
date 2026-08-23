@@ -1,12 +1,14 @@
 """Internal endpoint used by nginx auth_request to validate bearer tokens."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
-from .db import User
-from .deps import get_current_user
+from .deps import AuthContext, get_current_user
 
 router = APIRouter()
 
 
 @router.get("/validate")
-def validate(user: User = Depends(get_current_user)):
-    return {"email": user.email}
+def validate(response: Response, ctx: AuthContext = Depends(get_current_user)):
+    # Surfaced via auth_request_set in nginx so access logs can record who made each request.
+    response.headers["X-Auth-Email"] = ctx.email
+    response.headers["X-Auth-Iat"] = str(ctx.issue_date)
+    return {"email": ctx.email}

@@ -55,6 +55,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" http:
 
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
 
+## Usage logging
+
+Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, and the request line (method + path).
+
 # Benchmarking
 
 To benchmark the individual servers: (takes about 45 seconds for the tab-complete one and 6 minutes for the agent one; should run twice as the first time is definitely slower)
