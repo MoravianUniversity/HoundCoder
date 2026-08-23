@@ -10,7 +10,7 @@ services:
     runtime: nvidia
     ipc: host
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     volumes:
       - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
     # Uses a quantized model (INT4) which is 3x faster than original (Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8) but may be a little rough in some cases
@@ -47,7 +47,7 @@ services:
     runtime: nvidia
     ipc: host
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     volumes:
       - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
     # TODO: try "Qwen/Qwen2.5-Coder-1.5B" as speculative model (but has a vocab size mismatch, see https://github.com/vllm-project/vllm/issues/5203, should likely also increase the num_speculative_tokens to 5 or so)
