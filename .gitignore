@@ -4,3 +4,4 @@ __pycache__/
 jwt_secret.key
 auth/
 cache/
+usage*.log*
