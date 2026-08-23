@@ -13,6 +13,7 @@ services:
       - "127.0.0.1:8002:8002"
     volumes:
       - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
+      - /opt/hound-coder/cache/vllm:/root/.cache/vllm
     # Uses a quantized model (INT4) which is 3x faster than original (Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8) but may be a little rough in some cases
     # Eventually, should try NVFP4 version (e.g. https://huggingface.co/NVFP4/Qwen3-Coder-30B-A3B-Instruct-FP4) once that tooling is more robust on our machine - should have the speedup of INT4 without as many rough edges
     command: >
@@ -50,6 +51,7 @@ services:
       - "127.0.0.1:8001:8001"
     volumes:
       - /opt/hound-coder/cache/huggingface:/root/.cache/huggingface
+      - /opt/hound-coder/cache/vllm:/root/.cache/vllm
     # TODO: try "Qwen/Qwen2.5-Coder-1.5B" as speculative model (but has a vocab size mismatch, see https://github.com/vllm-project/vllm/issues/5203, should likely also increase the num_speculative_tokens to 5 or so)
     command: >
       Qwen/Qwen2.5-Coder-7B
