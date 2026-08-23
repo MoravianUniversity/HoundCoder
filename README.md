@@ -55,6 +55,8 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" http:
 
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
 
+Each token row also has a "Continue config" button that downloads [continue-config-template.yaml](continue-config-template.yaml) with that token filled in, ready to drop into a user's Continue extension config.
+
 ## Usage logging
 
 Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, and the request line (method + path).
