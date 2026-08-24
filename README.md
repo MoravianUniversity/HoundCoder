@@ -44,6 +44,8 @@ systemctl enable nginx
 systemctl restart nginx
 ```
 
+If you ever see the stock "Welcome to nginx!" page instead of the Hound Coder pages, `/etc/nginx/sites-enabled/default` has come back (e.g. reinstated by an `nginx` package upgrade) and is winning as the `default_server` for port 80. Re-run `rm -f /etc/nginx/sites-enabled/default && systemctl reload nginx` — `local.conf.example`'s `listen 80 default_server;` also guards against this as long as `local.conf` was copied from it.
+
 # Check it is working
 
 ```bash
