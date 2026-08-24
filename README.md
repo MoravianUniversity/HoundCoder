@@ -63,7 +63,7 @@ Each token row also has a "Continue config" button that downloads [continue-conf
 
 ## Usage logging
 
-Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, and the request line (method + path).
+Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, the request line (method + path), the response status, and the request body (the prompt/messages sent, not the model's response) — useful for auditing student assignment usage. The body is dropped from a log entry if it's larger than `client_body_buffer_size` (1 MB) since nginx then spills it to a temp file instead of keeping it available to log; bump that value in [hound-coder.conf](hound-coder.conf) if you expect larger prompts.
 
 ## Updating the production server
 
