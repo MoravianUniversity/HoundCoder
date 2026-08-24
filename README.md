@@ -57,6 +57,8 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" http:
 
 ## Managing allowed users
 
+Visiting the server's root URL shows a static welcome page (served straight from [www/index.html](www/index.html) by nginx) explaining what the service is and how to get access — no auth required, since it's just informational.
+
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
 
 Each token row also has a "Continue config" button that downloads [continue-config-template.yaml](continue-config-template.yaml) with that token filled in, ready to drop into a user's Continue extension config. The `apiBase` (scheme, host, and port) in that config is derived from `/opt/hound-coder/local.conf`: the `server_name`, and whichever `listen` directive is found first (an SSL one wins over a plain one), so it only needs to be set in one place.

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hound Coder</title>
+<style>
+  body { font-family: sans-serif; max-width: 700px; margin: 3rem auto; padding: 0 1rem; line-height: 1.5; }
+  code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }
+  h1 { margin-bottom: 0; }
+  .sub { color: #666; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+<h1>Hound Coder</h1>
+<p class="sub">Local LLM stack for coding assistance, used with the <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension in VS Code.</p>
+
+<h2>Getting access</h2>
+<p>Access requires a personal API token. Ask an administrator to add you as a user; they can then send you
+a ready-to-use Continue configuration file (or you can grab it yourself from the admin page if you're an admin).</p>
+
+<h2>Setting up Continue</h2>
+<p>Once you have a config file, open VS Code, install the Continue extension, and replace its configuration
+(<code>config.yaml</code>) with the one you were given. It points Continue at this server's tab-completion and
+chat endpoints using your personal token.</p>
+
+<h2>Endpoints</h2>
+<ul>
+  <li><code>/tab/</code> &mdash; OpenAI-compatible code completion endpoint</li>
+  <li><code>/chat/</code> &mdash; OpenAI-compatible chat/agent endpoint</li>
+  <li><code>/admin/</code> &mdash; admin-only user &amp; token management (requires an admin token)</li>
+</ul>
+</body>
+</html>
