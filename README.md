@@ -32,6 +32,10 @@ cd ..
 AUTH_DATA_DIR=$PWD/auth auth-server/venv/bin/python auth-server/bootstrap.py --email you@example.com
 systemctl enable --now hound-coder-auth.service
 
+# Set the host-specific nginx settings (server_name, and eventually TLS)
+cp local.conf.example /opt/hound-coder/local.conf
+# edit /opt/hound-coder/local.conf to set the real server_name
+
 # Copy nginx config
 ln -s $PWD/hound-coder.conf /etc/nginx/sites-available/hound-coder.conf
 ln -s /etc/nginx/sites-available/hound-coder.conf /etc/nginx/sites-enabled/hound-coder.conf
@@ -55,7 +59,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" http:
 
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
 
-Each token row also has a "Continue config" button that downloads [continue-config-template.yaml](continue-config-template.yaml) with that token filled in, ready to drop into a user's Continue extension config.
+Each token row also has a "Continue config" button that downloads [continue-config-template.yaml](continue-config-template.yaml) with that token filled in, ready to drop into a user's Continue extension config. The `apiBase` (scheme, host, and port) in that config is derived from `/opt/hound-coder/local.conf`: the `server_name`, and whichever `listen` directive is found first (an SSL one wins over a plain one), so it only needs to be set in one place.
 
 ## Usage logging
 

@@ -5,3 +5,4 @@ jwt_secret.key
 auth/
 cache/
 usage*.log*
+local.conf

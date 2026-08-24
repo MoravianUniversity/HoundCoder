@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from . import db
 from .deps import require_admin
+from .nginx_config import get_base_url
 from .security import encode_jwt
 
 router = APIRouter(prefix="/admin/api", dependencies=[Depends(require_admin)])
@@ -110,6 +111,7 @@ def download_continue_config(email: str, issue_date: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     with open(CONTINUE_TEMPLATE_PATH) as f:
         filled = f.read().replace("<YOUR_API_KEY>", encode_jwt(email, issue_date))
+        filled = filled.replace("<SERVER_BASE_URL>", get_base_url())
     filename = f"hound-coder-continue-config-{email}.yaml"
     return Response(
         content=filled,

@@ -6,7 +6,7 @@ models:
   - name: Tab Autocomplete (Qwen2.5 Coder 7B)
     provider: openai
     model: Qwen/Qwen2.5-Coder-7B
-    apiBase: http://localhost:8000/tab
+    apiBase: <SERVER_BASE_URL>/tab
     apiKey: <YOUR_API_KEY>
     roles: [autocomplete]
     defaultCompletionOptions:
@@ -33,7 +33,7 @@ models:
   - name: Agent (Qwen3 Coder 30B)
     provider: openai
     model: Intel/Qwen3-Coder-30B-A3B-Instruct-int4-AutoRound
-    apiBase: http://localhost:8000/chat
+    apiBase: <SERVER_BASE_URL>/chat
     apiKey: <YOUR_API_KEY>
     roles: [chat, edit, apply, summarize]
     defaultCompletionOptions:

@@ -1,0 +1,10 @@
+# /opt/hound-coder/local.conf
+# Host-specific nginx overrides. Copy this file to /opt/hound-coder/local.conf and edit — NOT tracked in git.
+
+listen 80;
+server_name localhost;
+
+# Once TLS certs are available (certbot, acme.sh, self-signed, etc.), add something like:
+# listen 443 ssl;
+# ssl_certificate     /etc/letsencrypt/live/coder.example.edu/fullchain.pem;
+# ssl_certificate_key /etc/letsencrypt/live/coder.example.edu/privkey.pem;
