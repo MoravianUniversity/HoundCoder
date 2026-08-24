@@ -16,6 +16,7 @@ cd hound-coder
 # 'Install' files
 ln -s $PWD/hound-coder-vllm.service /etc/systemd/system/hound-coder-vllm.service
 ln -s $PWD/hound-coder-auth.service /etc/systemd/system/hound-coder-auth.service
+ln -s $PWD/hound-coder-logrotate.conf /etc/logrotate.d/hound-coder
 
 # Register and enable the hound-coder vLLM service to start on boot
 systemctl daemon-reload
@@ -68,6 +69,8 @@ Each token row also has a "Continue config" button that downloads [continue-conf
 ## Usage logging
 
 Every request to `/tab/` or `/chat/` is logged to `/opt/hound-coder/usage.log` with the requester's email, token issue date, the request line (method + path), the response status, and the request body (the prompt/messages sent, not the model's response) — useful for auditing student assignment usage. The body is dropped from a log entry if it's larger than `client_body_buffer_size` (1 MB) since nginx then spills it to a temp file instead of keeping it available to log; bump that value in [hound-coder.conf](hound-coder.conf) if you expect larger prompts.
+
+[hound-coder-logrotate.conf](hound-coder-logrotate.conf) rotates `usage.log` weekly (keeping 26 compressed archives) via the system's `logrotate` cron job, and signals nginx to reopen the file afterward so logging continues uninterrupted.
 
 ## Updating the production server
 
