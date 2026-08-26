@@ -15,7 +15,9 @@
 <p class="sub">Local LLM stack for coding assistance, used with the <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension in VS Code.</p>
 
 <h2>Getting access</h2>
-<p>Access requires a personal API token. Ask an administrator to add you as a user; they can then send you
+<p>If your Google account is on the approved domain, you can
+<a href="/auth/info">sign in and get your own config file</a> in a couple of clicks.
+Otherwise, ask an administrator to add you as a user; they can then send you
 a ready-to-use Continue configuration file (or you can grab it yourself from the admin page if you're an admin).</p>
 
 <h2>Setting up Continue</h2>
@@ -27,6 +29,7 @@ chat endpoints using your personal token.</p>
 <ul>
   <li><code>/tab/</code> &mdash; OpenAI-compatible code completion endpoint</li>
   <li><code>/chat/</code> &mdash; OpenAI-compatible chat/agent endpoint</li>
+  <li><code>/auth/info</code> &mdash; self-service registration via Google sign-in</li>
   <li><code>/admin/</code> &mdash; admin-only user &amp; token management (requires an admin token)</li>
 </ul>
 </body>

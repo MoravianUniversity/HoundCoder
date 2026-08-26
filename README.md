@@ -31,6 +31,11 @@ cd ..
 
 # Seed the first admin user; save the printed JWT, it's your admin token (needed to reach /admin/)
 AUTH_DATA_DIR=$PWD/auth auth-server/venv/bin/python auth-server/bootstrap.py --email you@example.com
+
+# Configure Google OAuth self-service registration (optional but recommended)
+cp auth-server/.env.example auth-server/.env
+# edit auth-server/.env with a Google OAuth client id/secret and your allowed email domain
+
 systemctl enable --now hound-coder-auth.service
 
 # Set the host-specific nginx settings (server_name, and eventually TLS)
@@ -61,6 +66,28 @@ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $TOKEN" http:
 ## Managing allowed users
 
 Visiting the server's root URL shows a static welcome page (served straight from [www/index.html](www/index.html) by nginx) explaining what the service is and how to get access — no auth required, since it's just informational.
+
+### Self-service registration (Google OAuth)
+
+Users on the approved email domain can register themselves at `/auth/info` by signing in with Google, instead of
+waiting for an admin. Set this up via [auth-server/.env.example](auth-server/.env-example):
+
+1. Create an OAuth 2.0 client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), with
+   authorized redirect URI `https://<your-host>/auth/google/callback`.
+2. Copy `auth-server/.env.example` to `auth-server/.env` and fill in `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
+   `ALLOWED_EMAIL_DOMAIN` (only Google accounts on this domain may register). `.env` is not tracked in git.
+3. Restart `hound-coder-auth.service` to pick up the new settings.
+
+On sign-in, the server checks Google's `email_verified` claim and the account's domain, rejects blocked emails, and
+then creates the user (non-admin) if needed. It reuses the user's most recently issued non-revoked token if one
+exists, or issues a new one otherwise, then lets them download their Continue config from a success page — same
+template and token format as the admin-issued ones below.
+
+Admins can block specific email addresses (whether or not they've registered yet) from the `/admin/` UI's
+blocklist section; blocking revokes all of that email's existing tokens and prevents future self-registration or
+token issuance for it.
+
+### Admin UI
 
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
 

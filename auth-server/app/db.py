@@ -20,6 +20,12 @@ CREATE TABLE IF NOT EXISTS tokens (
     revoked INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (email, issue_date)
 );
+
+CREATE TABLE IF NOT EXISTS blocked_emails (
+    email TEXT PRIMARY KEY,
+    blocked_at INTEGER NOT NULL,
+    reason TEXT
+);
 """
 
 
@@ -35,6 +41,13 @@ class Token:
     email: str
     issue_date: int
     revoked: bool
+
+
+@dataclass
+class BlockedEmail:
+    email: str
+    blocked_at: int
+    reason: str | None
 
 
 def init_db() -> None:
@@ -123,3 +136,46 @@ def revoke_token(email: str, issue_date: int) -> None:
             "UPDATE tokens SET revoked = 1 WHERE email = ? AND issue_date = ?",
             (email, issue_date),
         )
+
+
+def revoke_all_tokens(email: str) -> None:
+    with get_conn() as conn:
+        conn.execute("UPDATE tokens SET revoked = 1 WHERE email = ?", (email,))
+
+
+def get_latest_valid_token(email: str) -> Token | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT email, issue_date, revoked FROM tokens "
+            "WHERE email = ? AND revoked = 0 ORDER BY issue_date DESC LIMIT 1",
+            (email,),
+        ).fetchone()
+    return Token(row[0], row[1], bool(row[2])) if row else None
+
+
+def is_blocked(email: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute("SELECT 1 FROM blocked_emails WHERE email = ?", (email,)).fetchone()
+    return row is not None
+
+
+def block_email(email: str, reason: str | None, blocked_at: int) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO blocked_emails (email, blocked_at, reason) VALUES (?, ?, ?) "
+            "ON CONFLICT(email) DO UPDATE SET blocked_at = excluded.blocked_at, reason = excluded.reason",
+            (email, blocked_at, reason),
+        )
+
+
+def unblock_email(email: str) -> None:
+    with get_conn() as conn:
+        conn.execute("DELETE FROM blocked_emails WHERE email = ?", (email,))
+
+
+def list_blocked() -> list[BlockedEmail]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT email, blocked_at, reason FROM blocked_emails ORDER BY email"
+        ).fetchall()
+    return [BlockedEmail(r[0], r[1], r[2]) for r in rows]

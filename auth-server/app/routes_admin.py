@@ -1,21 +1,15 @@
 """Admin-only API for managing allowed users and their tokens."""
-import os
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 
 from . import db
+from .continue_config import render_continue_config
 from .deps import require_admin
-from .nginx_config import get_base_url
 from .security import encode_jwt
 
 router = APIRouter(prefix="/admin/api", dependencies=[Depends(require_admin)])
-
-CONTINUE_TEMPLATE_PATH = os.environ.get(
-    "CONTINUE_TEMPLATE_PATH",
-    os.path.join(os.path.dirname(__file__), "..", "..", "continue-config-template.yaml"),
-)
 
 
 class NewUser(BaseModel):
@@ -36,7 +30,19 @@ class TokenOut(BaseModel):
 class UserOut(BaseModel):
     email: str
     is_admin: bool
+    blocked: bool
     tokens: list[TokenOut]
+
+
+class BlockEntry(BaseModel):
+    email: str
+    reason: str | None = None
+
+
+class BlockedOut(BaseModel):
+    email: str
+    blocked_at: int
+    reason: str | None
 
 
 def _user_out(user: db.User) -> UserOut:
@@ -44,7 +50,7 @@ def _user_out(user: db.User) -> UserOut:
         TokenOut(issue_date=t.issue_date, revoked=t.revoked, token=encode_jwt(user.email, t.issue_date))
         for t in db.list_tokens(user.email)
     ]
-    return UserOut(email=user.email, is_admin=user.is_admin, tokens=tokens)
+    return UserOut(email=user.email, is_admin=user.is_admin, blocked=db.is_blocked(user.email), tokens=tokens)
 
 
 @router.get("/users", response_model=list[UserOut])
@@ -109,12 +115,28 @@ def download_continue_config(email: str, issue_date: int):
     token_row = db.get_token(email, issue_date)
     if token_row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
-    with open(CONTINUE_TEMPLATE_PATH) as f:
-        filled = f.read().replace("<YOUR_API_KEY>", encode_jwt(email, issue_date))
-        filled = filled.replace("<SERVER_BASE_URL>", get_base_url())
+    filled = render_continue_config(email, issue_date)
     filename = f"hound-coder-continue-config-{email}.yaml"
     return Response(
         content=filled,
         media_type="application/yaml",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/blocklist", response_model=list[BlockedOut])
+def list_blocklist():
+    return [BlockedOut(email=b.email, blocked_at=b.blocked_at, reason=b.reason) for b in db.list_blocked()]
+
+
+@router.post("/blocklist", response_model=BlockedOut, status_code=status.HTTP_201_CREATED)
+def block_email(entry: BlockEntry):
+    now = int(time.time())
+    db.block_email(entry.email, entry.reason, now)
+    db.revoke_all_tokens(entry.email)
+    return BlockedOut(email=entry.email, blocked_at=now, reason=entry.reason)
+
+
+@router.delete("/blocklist/{email}", status_code=status.HTTP_204_NO_CONTENT)
+def unblock_email(email: str):
+    db.unblock_email(email)

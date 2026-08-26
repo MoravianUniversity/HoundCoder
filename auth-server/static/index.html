@@ -9,6 +9,7 @@
   th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
   code { word-break: break-all; }
   .revoked { color: #999; text-decoration: line-through; }
+  .blocked { color: #b00020; }
   button { cursor: pointer; }
   #token-box { width: 100%; box-sizing: border-box; }
 </style>
@@ -27,6 +28,14 @@
 <label><input id="new-is-admin" type="checkbox"> admin</label>
 <button id="add-user">Add</button>
 
+<h2>Blocklist</h2>
+<p>Blocking an email revokes all of its existing tokens and prevents self-registration or new tokens
+for that address (works even if it hasn't registered yet).</p>
+<input id="block-email" type="email" placeholder="email@example.com">
+<input id="block-reason" type="text" placeholder="reason (optional)">
+<button id="add-block">Block</button>
+<div id="blocklist"></div>
+
 <div id="error" style="color:red"></div>
 <div id="users"></div>
 
@@ -38,8 +47,9 @@ document.getElementById('save-token').onclick = () => {
   localStorage.setItem('houndCoderAdminToken', tokenBox.value);
   loadUsers();
 };
-document.getElementById('refresh').onclick = loadUsers;
+document.getElementById('refresh').onclick = () => { loadUsers(); loadBlocklist(); };
 document.getElementById('add-user').onclick = addUser;
+document.getElementById('add-block').onclick = addBlock;
 
 function authHeaders() {
   return { 'Authorization': 'Bearer ' + (localStorage.getItem('houndCoderAdminToken') || '') };
@@ -80,12 +90,13 @@ function render(users) {
         <td>${t.revoked ? 'revoked' : `<button data-email="${user.email}" data-issue="${t.issue_date}" class="revoke">Revoke</button>`}</td>
       </tr>`).join('');
     section.innerHTML = `
-      <h3>${user.email} ${user.is_admin ? '(admin)' : ''}</h3>
+      <h3>${user.email} ${user.is_admin ? '(admin)' : ''} ${user.blocked ? '<span class="blocked">(blocked)</span>' : ''}</h3>
       <button data-email="${user.email}" data-admin="${!user.is_admin}" class="toggle-admin">
         ${user.is_admin ? 'Revoke admin' : 'Make admin'}
       </button>
       <button data-email="${user.email}" class="issue-token">Issue new token</button>
       <button data-email="${user.email}" class="remove-user">Remove user</button>
+      ${user.blocked ? '' : `<button data-email="${user.email}" class="block-user">Block</button>`}
       <table><thead><tr><th>Issued</th><th>Token</th><th></th><th></th></tr></thead><tbody>${tokenRows}</tbody></table>
     `;
     container.appendChild(section);
@@ -111,6 +122,54 @@ function render(users) {
     loadUsers();
   }));
   container.querySelectorAll('.download-config').forEach(btn => btn.onclick = () => withErrorAlert(() => downloadConfig(btn.dataset.email, btn.dataset.issue)));
+  container.querySelectorAll('.block-user').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    if (!confirm(`Block ${btn.dataset.email}? This revokes all their tokens.`)) return;
+    await api('/blocklist', { method: 'POST', body: JSON.stringify({ email: btn.dataset.email }) });
+    loadUsers();
+    loadBlocklist();
+  }));
+}
+
+async function loadBlocklist() {
+  try {
+    renderBlocklist(await api('/blocklist'));
+  } catch (e) {
+    document.getElementById('error').textContent = 'Failed to load blocklist: ' + e.message;
+  }
+}
+
+function renderBlocklist(entries) {
+  const container = document.getElementById('blocklist');
+  if (entries.length === 0) {
+    container.innerHTML = '<p><em>No blocked emails.</em></p>';
+    return;
+  }
+  const rows = entries.map(b => `
+    <tr>
+      <td>${b.email}</td>
+      <td>${b.reason || ''}</td>
+      <td>${new Date(b.blocked_at * 1000).toLocaleString()}</td>
+      <td><button data-email="${b.email}" class="unblock">Unblock</button></td>
+    </tr>`).join('');
+  container.innerHTML = `<table><thead><tr><th>Email</th><th>Reason</th><th>Blocked at</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  container.querySelectorAll('.unblock').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
+    await api(`/blocklist/${encodeURIComponent(btn.dataset.email)}`, { method: 'DELETE' });
+    loadUsers();
+    loadBlocklist();
+  }));
+}
+
+function addBlock() {
+  withErrorAlert(async () => {
+    const email = document.getElementById('block-email').value.trim();
+    const reason = document.getElementById('block-reason').value.trim();
+    if (!email) return;
+    await api('/blocklist', { method: 'POST', body: JSON.stringify({ email, reason: reason || null }) });
+    document.getElementById('block-email').value = '';
+    document.getElementById('block-reason').value = '';
+    loadUsers();
+    loadBlocklist();
+  });
 }
 
 async function downloadConfig(email, issueDate) {
@@ -147,6 +206,7 @@ function addUser() {
 }
 
 loadUsers();
+loadBlocklist();
 </script>
 </body>
 </html>

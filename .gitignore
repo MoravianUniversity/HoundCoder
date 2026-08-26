@@ -1,4 +1,5 @@
 auth-server/venv/
+auth-server/.env
 __pycache__/
 *.pyc
 jwt_secret.key
