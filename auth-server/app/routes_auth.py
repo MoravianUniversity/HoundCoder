@@ -12,7 +12,7 @@ from .nginx_config import get_base_url
 from .oauth_client import oauth
 from .security import decode_jwt, encode_jwt
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/register")
 
 COOKIE_NAME = "hc_token"
 
@@ -53,21 +53,23 @@ def _page(title: str, body: str) -> HTMLResponse:
 </html>""")
 
 
-@router.get("/info")
+@router.get("/")
 def info(error: str | None = None):
     error_html = f'<p class="error">{ERROR_MESSAGES[error]}</p>' if error in ERROR_MESSAGES else ""
     return _page("Hound Coder — Get Access", f"""
 <h1>Hound Coder</h1>
 <p>Sign in with your Google account to get a personal API token for the
-<a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension.</p>
+VS Code <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension.</p>
+<p>Only accounts on the <code>{_allowed_domain()}</code> domain are allowed — make sure you sign in with that
+account below.</p>
 {error_html}
-<p><a class="button" href="/auth/google/login">Sign in with Google</a></p>
+<p><a class="button" href="/register/google/login">Sign in with Google</a></p>
 """)
 
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    redirect_uri = f"{get_base_url()}/auth/google/callback"
+    redirect_uri = f"{get_base_url()}/register/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -78,15 +80,15 @@ async def google_callback(request: Request):
 
     email = userinfo.get("email")
     if not email or not userinfo.get("email_verified"):
-        return RedirectResponse("/auth/info?error=domain_not_allowed")
+        return RedirectResponse("/register/?error=domain_not_allowed")
 
     email = email.lower()
     domain = email.rsplit("@", 1)[-1]
     if domain != _allowed_domain():
-        return RedirectResponse("/auth/info?error=domain_not_allowed")
+        return RedirectResponse("/register/?error=domain_not_allowed")
 
     if db.is_blocked(email):
-        return RedirectResponse("/auth/info?error=blocked")
+        return RedirectResponse("/register/?error=blocked")
 
     now = int(time.time())
     user = db.get_user(email)
@@ -98,7 +100,7 @@ async def google_callback(request: Request):
         token_row = db.create_token(email, now)
 
     jwt_value = encode_jwt(email, token_row.issue_date)
-    response = RedirectResponse("/auth/success", status_code=status.HTTP_302_FOUND)
+    response = RedirectResponse("/register/success", status_code=status.HTTP_302_FOUND)
     response.set_cookie(
         COOKIE_NAME,
         jwt_value,
@@ -137,7 +139,7 @@ def success(request: Request):
     email, _ = _auth_from_cookie(request)
     return _page("Hound Coder — Success", f"""
 <h1>You're all set, {email}</h1>
-<p><a class="button" href="/auth/config">Download Continue Config</a></p>
+<p><a class="button" href="/register/config">Download Continue Config</a></p>
 
 <h2>Setting up Continue</h2>
 <p>Save the downloaded file as <code>config.yaml</code> in your VS Code Continue extension's config directory

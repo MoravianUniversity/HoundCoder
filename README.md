@@ -69,11 +69,11 @@ Visiting the server's root URL shows a static welcome page (served straight from
 
 ### Self-service registration (Google OAuth)
 
-Users on the approved email domain can register themselves at `/auth/info` by signing in with Google, instead of
+Users on the approved email domain can register themselves at `/register/` by signing in with Google, instead of
 waiting for an admin. Set this up via [auth-server/.env.example](auth-server/.env-example):
 
 1. Create an OAuth 2.0 client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), with
-   authorized redirect URI `https://<your-host>/auth/google/callback`.
+   authorized redirect URI `https://<your-host>/register/google/callback`.
 2. Copy `auth-server/.env.example` to `auth-server/.env` and fill in `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and
    `ALLOWED_EMAIL_DOMAIN` (only Google accounts on this domain may register). `.env` is not tracked in git.
 3. Restart `hound-coder-auth.service` to pick up the new settings.
