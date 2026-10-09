@@ -97,10 +97,31 @@ nginx forwards `/tab/` and `/chat/` to the Hound Coder server, which validates t
 
 **Prometheus metrics** (scrape `http://127.0.0.1:8003/metrics` on the host): `houndcoder_requests_total`, `houndcoder_prompt_tokens_total`, `houndcoder_completion_tokens_total`, `houndcoder_request_duration_seconds`, and `houndcoder_ttft_seconds` — ready for a later Grafana setup (system aggregates, per-user filter by `email`, admin view of all users).
 
-**HTTP query API** (bearer JWT required):
+**HTTP query API** (bearer JWT required; non-admins always see only their own data):
 
-- `GET /usage/summary` — aggregates (non-admins: self only; admins: optional `?email=` or all users). Supports `endpoint`, `since`, `until`, `group_by_endpoint`.
-- `GET /usage/events` — recent request rows with the same scoping. Pass `include_body=true` to include prompt/message bodies.
+- `GET /usage/summary` — per-email aggregates (`request_count`, token totals, average latency/TTFT).
+- `GET /usage/events` — recent request rows (newest first), including tokens and latency; `request_body` is omitted unless requested.
+
+Shared query params:
+
+| Param | Summary | Events | Notes |
+|-------|---------|--------|-------|
+| `email` | yes | yes | Admin only: filter to one user. Omit for all users (admin) or self (non-admin). |
+| `endpoint` | yes | yes | `tab` or `chat`. |
+| `since` / `until` | yes | yes | Unix timestamps (inclusive). |
+| `group_by_endpoint` | yes | — | If `true`, break totals out by `tab`/`chat` (default `false`). |
+| `limit` | — | yes | Page size, 1–1000 (default `100`). |
+| `offset` | — | yes | Skip N rows (default `0`). |
+| `include_body` | — | yes | If `true`, include prompt/message bodies (default `false`). |
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" 'http://localhost/usage/summary?group_by_endpoint=true' | jq
+curl -s -H "Authorization: Bearer $TOKEN" \
+  'http://localhost/usage/events?endpoint=chat&limit=20&include_body=true' | jq
+# Admin: one user
+curl -s -H "Authorization: Bearer $ADMIN_TOKEN" \
+  'http://localhost/usage/summary?email=student@example.edu' | jq
+```
 
 ## Updating the production server
 
