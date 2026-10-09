@@ -9,18 +9,30 @@ from starlette.middleware.sessions import SessionMiddleware
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 from . import db
+from . import metrics
 from . import routes_admin
 from . import routes_auth
+from . import routes_home
+from . import routes_proxy
+from . import routes_usage
 from . import routes_validate
+from . import settings
+from . import usage_db
 from .nginx_config import get_base_url
 from .security import get_or_create_session_secret
 
-app = FastAPI(title="Hound Coder Auth Server")
+app = FastAPI(title=settings.service_name())
 
 
 @app.on_event("startup")
 def on_startup():
     db.init_db()
+    usage_db.init_db()
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    await routes_proxy.close_http_client()
 
 
 app.add_middleware(
@@ -30,9 +42,13 @@ app.add_middleware(
     https_only=get_base_url().startswith("https://"),
 )
 
+app.include_router(routes_home.router)
 app.include_router(routes_validate.router)
 app.include_router(routes_admin.router)
 app.include_router(routes_auth.router)
+app.include_router(routes_proxy.router)
+app.include_router(routes_usage.router)
+app.mount("/metrics", metrics.metrics_app)
 
 _static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
 app.mount("/admin", StaticFiles(directory=_static_dir, html=True), name="admin-ui")

@@ -4,7 +4,7 @@ import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-DATA_DIR = os.environ.get("AUTH_DATA_DIR", "/opt/hound-coder/auth")
+DATA_DIR = os.environ.get("HOUND_DATA_DIR", "/opt/hound-coder/data")
 DB_PATH = os.path.join(DATA_DIR, "hound_coder_auth.db")
 
 SCHEMA = """

@@ -1,34 +1,36 @@
-"""Parses server_name/listen out of nginx's local.conf so they aren't duplicated in app config."""
+"""Parses server_name/listen out of the nginx site config so they aren't duplicated in app config."""
 import os
 import re
 
-LOCAL_CONF_PATH = os.environ.get("NGINX_LOCAL_CONF", "/opt/hound-coder/local.conf")
+SITE_CONF_PATH = os.environ.get(
+    "NGINX_SITE_CONF", "/etc/nginx/sites-available/hound-coder.conf"
+)
 DEFAULT_SERVER_NAME = "localhost"
 
 _SERVER_NAME_RE = re.compile(r"^\s*server_name\s+(\S+)\s*;", re.MULTILINE)
 _LISTEN_RE = re.compile(r"^\s*listen\s+([^;]+);", re.MULTILINE)
 
 
-def _read_local_conf() -> str:
+def _read_site_conf() -> str:
     try:
-        with open(LOCAL_CONF_PATH) as f:
+        with open(SITE_CONF_PATH) as f:
             return f.read()
     except OSError:
         return ""
 
 
 def get_server_name() -> str:
-    match = _SERVER_NAME_RE.search(_read_local_conf())
+    match = _SERVER_NAME_RE.search(_read_site_conf())
     return match.group(1) if match else DEFAULT_SERVER_NAME
 
 
 def get_base_url() -> str:
-    """Builds scheme://host[:port] from local.conf's server_name and listen directives.
+    """Builds scheme://host[:port] from the site config's server_name and listen directives.
 
     Prefers an SSL listen directive (https) over a plain one (http); omits the port
     when it matches the scheme's default (80 for http, 443 for https).
     """
-    contents = _read_local_conf()
+    contents = _read_site_conf()
     host = get_server_name()
 
     ssl_port = plain_port = None

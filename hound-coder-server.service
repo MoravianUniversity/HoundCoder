@@ -1,0 +1,14 @@
+# /etc/systemd/system/hound-coder-server.service
+[Unit]
+Description=Hound Coder server (JWT, admin, inference proxy + metrics)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hound-coder/server
+ExecStart=/opt/hound-coder/server/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8003
+Restart=on-failure
+Environment=HOUND_DATA_DIR=/opt/hound-coder/data
+
+[Install]
+WantedBy=multi-user.target

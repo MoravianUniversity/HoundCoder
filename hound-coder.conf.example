@@ -1,0 +1,31 @@
+# Copy to /etc/nginx/sites-available/hound-coder.conf and edit server_name (and TLS when ready).
+# Then: ln -s /etc/nginx/sites-available/hound-coder.conf /etc/nginx/sites-enabled/
+#       rm -f /etc/nginx/sites-enabled/default
+#       nginx -t && systemctl reload nginx
+#
+# The Hound Coder server reads this same file for scheme/host (OAuth redirects, Continue config).
+
+upstream server_backend { server 127.0.0.1:8003; }
+
+server {
+    # default_server wins over the stock nginx default site for this socket
+    # (e.g. requests by bare IP, or if sites-enabled/default somehow still exists)
+    listen 80 default_server;
+    server_name localhost;
+
+    # Once TLS certs are available (certbot, acme.sh, self-signed, etc.), add:
+    # listen 443 ssl default_server;
+    # ssl_certificate     /etc/letsencrypt/live/coder.example.edu/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/coder.example.edu/privkey.pem;
+
+    # All traffic → Hound Coder server (welcome page, JWT, admin, register, usage, /tab + /chat → vLLM)
+    location / {
+        proxy_pass http://server_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+    }
+}

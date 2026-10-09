@@ -1,5 +1,4 @@
 """Public self-service registration via Google OAuth, locked to one email domain."""
-import os
 import time
 
 import jwt
@@ -7,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from . import db
+from . import settings
 from .continue_config import render_continue_config
 from .nginx_config import get_base_url
 from .oauth_client import oauth
@@ -16,17 +16,20 @@ router = APIRouter(prefix="/register")
 
 COOKIE_NAME = "hc_token"
 
-ERROR_MESSAGES = {
-    "blocked": "This email address has been blocked by an administrator.",
-    "domain_not_allowed": "Sign-in is restricted to accounts on the approved domain.",
-}
-
 
 def _allowed_domain() -> str:
-    domain = os.environ.get("ALLOWED_EMAIL_DOMAIN")
+    domain = settings.allowed_email_domain()
     if not domain:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "ALLOWED_EMAIL_DOMAIN is not configured")
-    return domain.lower()
+    return domain
+
+
+def _error_message(error: str | None) -> str | None:
+    if error == "blocked":
+        return "This email address has been blocked by an administrator."
+    if error == "domain_not_allowed":
+        return f"Sign-in is restricted to Google accounts on @{_allowed_domain()}."
+    return None
 
 
 def _cookie_is_secure() -> bool:
@@ -55,12 +58,15 @@ def _page(title: str, body: str) -> HTMLResponse:
 
 @router.get("/")
 def info(error: str | None = None):
-    error_html = f'<p class="error">{ERROR_MESSAGES[error]}</p>' if error in ERROR_MESSAGES else ""
-    return _page("Hound Coder — Get Access", f"""
-<h1>Hound Coder</h1>
+    name = settings.service_name()
+    domain = _allowed_domain()
+    msg = _error_message(error)
+    error_html = f'<p class="error">{msg}</p>' if msg else ""
+    return _page(f"{name} — Get Access", f"""
+<h1>{name}</h1>
 <p>Sign in with your Google account to get a personal API token for the
 VS Code <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension.</p>
-<p>Only accounts on the <code>{_allowed_domain()}</code> domain are allowed — make sure you sign in with that
+<p>Only accounts on <strong>@{domain}</strong> are allowed — make sure you sign in with that
 account below.</p>
 {error_html}
 <p><a class="button" href="/register/google/login">Sign in with Google</a></p>
@@ -137,7 +143,8 @@ def _auth_from_cookie(request: Request) -> tuple[str, int]:
 @router.get("/success")
 def success(request: Request):
     email, _ = _auth_from_cookie(request)
-    return _page("Hound Coder — Success", f"""
+    name = settings.service_name()
+    return _page(f"{name} — Success", f"""
 <h1>You're all set, {email}</h1>
 <p><a class="button" href="/register/config">Download Continue Config</a></p>
 

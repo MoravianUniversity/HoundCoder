@@ -1,9 +1,9 @@
-auth-server/venv/
-auth-server/.env
+server/venv/
+server/.env
 __pycache__/
 *.pyc
 jwt_secret.key
 auth/
+data/
 cache/
 usage*.log*
-local.conf

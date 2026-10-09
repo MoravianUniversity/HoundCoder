@@ -4,7 +4,7 @@ import stat
 
 import jwt
 
-DATA_DIR = os.environ.get("AUTH_DATA_DIR", "/opt/hound-coder/auth")
+DATA_DIR = os.environ.get("HOUND_DATA_DIR", "/opt/hound-coder/data")
 SECRET_PATH = os.path.join(DATA_DIR, "jwt_secret.key")
 SESSION_SECRET_PATH = os.path.join(DATA_DIR, "session_secret.key")
 ALGORITHM = "HS256"
