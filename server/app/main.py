@@ -18,10 +18,13 @@ from . import routes_usage
 from . import routes_validate
 from . import settings
 from . import usage_db
-from .nginx_config import get_base_url
 from .security import get_or_create_session_secret
 
 app = FastAPI(title=settings.service_name())
+
+
+def _cookie_secure() -> bool:
+    return os.environ.get("COOKIE_SECURE", "").lower() in ("1", "true", "yes")
 
 
 @app.on_event("startup")
@@ -39,7 +42,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=get_or_create_session_secret(),
     same_site="lax",
-    https_only=get_base_url().startswith("https://"),
+    https_only=_cookie_secure(),
 )
 
 app.include_router(routes_home.router)

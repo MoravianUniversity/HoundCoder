@@ -7,9 +7,10 @@ import re
 from dataclasses import dataclass
 
 import markdown
+from fastapi import Request
 
 from . import settings
-from .nginx_config import get_base_url
+from .public_url import base_url_from_request
 
 SECTIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "setup-sections")
 
@@ -32,9 +33,9 @@ def apply_placeholders(text: str, placeholders: dict[str, str]) -> str:
     return text
 
 
-def build_placeholders(*, api_key: str) -> dict[str, str]:
+def build_placeholders(request: Request, *, api_key: str) -> dict[str, str]:
     return {
-        "SERVER_BASE_URL": get_base_url(),
+        "SERVER_BASE_URL": base_url_from_request(request),
         "YOUR_API_KEY": api_key,
         "SERVICE_NAME": settings.service_name(),
     }

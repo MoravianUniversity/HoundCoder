@@ -10,8 +10,8 @@ from fastapi.templating import Jinja2Templates
 
 from . import db
 from . import settings
-from .nginx_config import get_base_url
 from .oauth_client import oauth
+from .public_url import base_url_from_request
 from .security import decode_jwt, encode_jwt
 from .setup_sections import build_placeholders, load_sections
 
@@ -31,13 +31,13 @@ def _allowed_domain() -> str:
     return domain
 
 
-def _cookie_is_secure() -> bool:
-    return get_base_url().startswith("https://")
+def _cookie_is_secure(request: Request) -> bool:
+    return request.url.scheme == "https"
 
 
 @router.get("/google/login")
 async def google_login(request: Request):
-    redirect_uri = f"{get_base_url()}/register/google/callback"
+    redirect_uri = f"{base_url_from_request(request)}/register/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -73,7 +73,7 @@ async def google_callback(request: Request):
         COOKIE_NAME,
         jwt_value,
         httponly=True,
-        secure=_cookie_is_secure(),
+        secure=_cookie_is_secure(request),
         samesite="lax",
         max_age=60 * 60 * 24 * 30,
     )
@@ -106,7 +106,7 @@ def _auth_from_cookie(request: Request) -> tuple[str, int]:
 def success(request: Request):
     email, issue_date = _auth_from_cookie(request)
     jwt_value = encode_jwt(email, issue_date)
-    placeholders = build_placeholders(api_key=jwt_value)
+    placeholders = build_placeholders(request, api_key=jwt_value)
     sections = load_sections(placeholders)
     masked = jwt_value[:TOKEN_PREFIX_LEN] + "…"
     return templates.TemplateResponse(

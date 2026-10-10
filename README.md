@@ -79,9 +79,9 @@ then creates the user (non-admin) if needed. It reuses the user's most recently 
 exists, or issues a new one otherwise. The success page shows a (masked) copyable token and collapsible setup
 sections defined as markdown under [server/setup-sections/](server/setup-sections/). Those files support
 placeholders such as `<SERVER_BASE_URL>`, `<YOUR_API_KEY>`, and `<SERVICE_NAME>`; fenced code blocks marked
-`download=<filename>` become downloadable configs (e.g. Continue). `<SERVER_BASE_URL>` is derived from
-`/etc/nginx/sites-available/hound-coder.conf` (`server_name` and listen/SSL), so the public base URL only needs
-to be set in one place.
+`download=<filename>` become downloadable configs (e.g. Continue). `<SERVER_BASE_URL>` comes from the
+request's Host (and `X-Forwarded-Proto` when TLS terminates at nginx). When you enable HTTPS at nginx, also
+set `COOKIE_SECURE=1` in `server/.env` so the OAuth session cookie is marked Secure.
 
 Admins can block specific email addresses (whether or not they've registered yet) from the `/admin/` UI's
 blocklist section; blocking revokes all of that email's existing tokens and prevents future self-registration or
