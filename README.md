@@ -1,6 +1,6 @@
 # Hound Coder
 
-This is a project to run a local LLM stack for coding assistance. It runs a a code completion server and an agent server on a DGX Spark. These can be accessed utilizing the Continue extension in VS Code.
+This is a project to run a local LLM stack for coding assistance. It runs a code completion server and an agent server on a DGX Spark. Clients that speak OpenAI-compatible APIs (Zed, OpenCode, Continue, and others) can use it with a personal API token.
 
 ```bash
 # Note: all commands should be run as root (or with sudo)
@@ -65,8 +65,8 @@ Visiting the server's root URL shows a welcome page from the Hound Coder server 
 
 ### Self-service registration (Google OAuth)
 
-Users on the approved email domain can register themselves at `/register/` by signing in with Google, instead of
-waiting for an admin. Set this up via [server/.env.example](server/.env.example):
+Users on the approved email domain can get a token from the homepage by signing in with Google, instead of waiting for
+an admin. Set this up via [server/.env.example](server/.env.example):
 
 1. Create an OAuth 2.0 client in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials), with
    authorized redirect URI `https://<your-host>/register/google/callback`.
@@ -76,8 +76,12 @@ waiting for an admin. Set this up via [server/.env.example](server/.env.example)
 
 On sign-in, the server checks Google's `email_verified` claim and the account's domain, rejects blocked emails, and
 then creates the user (non-admin) if needed. It reuses the user's most recently issued non-revoked token if one
-exists, or issues a new one otherwise, then lets them download their Continue config from a success page — same
-template and token format as the admin-issued ones below.
+exists, or issues a new one otherwise. The success page shows a (masked) copyable token and collapsible setup
+sections defined as markdown under [server/setup-sections/](server/setup-sections/). Those files support
+placeholders such as `<SERVER_BASE_URL>`, `<YOUR_API_KEY>`, and `<SERVICE_NAME>`; fenced code blocks marked
+`download=<filename>` become downloadable configs (e.g. Continue). `<SERVER_BASE_URL>` is derived from
+`/etc/nginx/sites-available/hound-coder.conf` (`server_name` and listen/SSL), so the public base URL only needs
+to be set in one place.
 
 Admins can block specific email addresses (whether or not they've registered yet) from the `/admin/` UI's
 blocklist section; blocking revokes all of that email's existing tokens and prevents future self-registration or
@@ -86,8 +90,6 @@ token issuance for it.
 ### Admin UI
 
 Open `http://localhost/admin/` in a browser and paste an admin JWT (e.g. the one printed by `bootstrap.py`) to add/remove users, toggle admin status, and issue or revoke tokens. The same operations are available directly via the `/admin/api/users` REST API using that bearer token.
-
-Each token row also has a "Continue config" button that downloads [continue-config-template.yaml](continue-config-template.yaml) with that token filled in, ready to drop into a user's Continue extension config. The `apiBase` (scheme, host, and port) in that config is derived from `/etc/nginx/sites-available/hound-coder.conf`: the `server_name`, and whichever `listen` directive is found first (an SSL one wins over a plain one), so it only needs to be set in one place.
 
 ## Usage metrics and audit
 

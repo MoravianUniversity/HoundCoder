@@ -1,11 +1,10 @@
 """Admin-only API for managing allowed users and their tokens."""
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from . import db
-from .continue_config import render_continue_config
 from .deps import require_admin
 from .security import encode_jwt
 
@@ -108,20 +107,6 @@ def revoke_token(email: str, issue_date: int):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
     db.revoke_token(email, issue_date)
     return TokenOut(issue_date=issue_date, revoked=True, token=encode_jwt(email, issue_date))
-
-
-@router.get("/users/{email}/tokens/{issue_date}/continue-config")
-def download_continue_config(email: str, issue_date: int):
-    token_row = db.get_token(email, issue_date)
-    if token_row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Token not found")
-    filled = render_continue_config(email, issue_date)
-    filename = f"hound-coder-continue-config-{email}.yaml"
-    return Response(
-        content=filled,
-        media_type="application/yaml",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
 
 
 @router.get("/blocklist", response_model=list[BlockedOut])

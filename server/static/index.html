@@ -86,7 +86,6 @@ function render(users) {
       <tr>
         <td>${new Date(t.issue_date * 1000).toLocaleString()}</td>
         <td class="${t.revoked ? 'revoked' : ''}"><code>${t.token}</code></td>
-        <td>${t.revoked ? '' : `<button data-email="${user.email}" data-issue="${t.issue_date}" class="download-config">Continue config</button>`}</td>
         <td>${t.revoked ? 'revoked' : `<button data-email="${user.email}" data-issue="${t.issue_date}" class="revoke">Revoke</button>`}</td>
       </tr>`).join('');
     section.innerHTML = `
@@ -97,7 +96,7 @@ function render(users) {
       <button data-email="${user.email}" class="issue-token">Issue new token</button>
       <button data-email="${user.email}" class="remove-user">Remove user</button>
       ${user.blocked ? '' : `<button data-email="${user.email}" class="block-user">Block</button>`}
-      <table><thead><tr><th>Issued</th><th>Token</th><th></th><th></th></tr></thead><tbody>${tokenRows}</tbody></table>
+      <table><thead><tr><th>Issued</th><th>Token</th><th></th></tr></thead><tbody>${tokenRows}</tbody></table>
     `;
     container.appendChild(section);
   }
@@ -121,7 +120,6 @@ function render(users) {
     await api(`/users/${encodeURIComponent(btn.dataset.email)}/tokens/${btn.dataset.issue}/revoke`, { method: 'POST' });
     loadUsers();
   }));
-  container.querySelectorAll('.download-config').forEach(btn => btn.onclick = () => withErrorAlert(() => downloadConfig(btn.dataset.email, btn.dataset.issue)));
   container.querySelectorAll('.block-user').forEach(btn => btn.onclick = () => withErrorAlert(async () => {
     if (!confirm(`Block ${btn.dataset.email}? This revokes all their tokens.`)) return;
     await api('/blocklist', { method: 'POST', body: JSON.stringify({ email: btn.dataset.email }) });
@@ -170,20 +168,6 @@ function addBlock() {
     loadUsers();
     loadBlocklist();
   });
-}
-
-async function downloadConfig(email, issueDate) {
-  const res = await fetch(`/admin/api/users/${encodeURIComponent(email)}/tokens/${issueDate}/continue-config`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error((await res.text()) || res.statusText);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hound-coder-continue-config-${email}.yaml`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 async function withErrorAlert(fn) {

@@ -1,3 +1,14 @@
+# Continue
+
+[Continue](https://marketplace.visualstudio.com/items?itemName=Continue.continue) is a VS Code extension that can use both tab-completion and agent chat against this server.
+
+1. Install the Continue extension in VS Code (if you have not already).
+2. Download the config below and save it as `config.yaml` in Continue's config directory, replacing any existing configuration.
+3. Reload VS Code / Continue so it picks up the new file.
+
+The downloaded file points Continue at this server's tab-completion and chat endpoints using your personal token.
+
+```yaml download=hound-coder-continue-config.yaml
 name: HoundCoder
 version: 1.0.0
 schema: v1
@@ -53,3 +64,4 @@ context:
     params:
       stackDepth: 3
   - provider: repo-map
+```

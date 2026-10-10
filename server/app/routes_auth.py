@@ -1,20 +1,27 @@
 """Public self-service registration via Google OAuth, locked to one email domain."""
+import json
+import os
 import time
 
 import jwt
 from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 
 from . import db
 from . import settings
-from .continue_config import render_continue_config
 from .nginx_config import get_base_url
 from .oauth_client import oauth
 from .security import decode_jwt, encode_jwt
+from .setup_sections import build_placeholders, load_sections
 
 router = APIRouter(prefix="/register")
 
 COOKIE_NAME = "hc_token"
+TOKEN_PREFIX_LEN = 20
+
+_templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
+templates = Jinja2Templates(directory=_templates_dir)
 
 
 def _allowed_domain() -> str:
@@ -24,53 +31,8 @@ def _allowed_domain() -> str:
     return domain
 
 
-def _error_message(error: str | None) -> str | None:
-    if error == "blocked":
-        return "This email address has been blocked by an administrator."
-    if error == "domain_not_allowed":
-        return f"Sign-in is restricted to Google accounts on @{_allowed_domain()}."
-    return None
-
-
 def _cookie_is_secure() -> bool:
     return get_base_url().startswith("https://")
-
-
-def _page(title: str, body: str) -> HTMLResponse:
-    return HTMLResponse(f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>{title}</title>
-<style>
-  body {{ font-family: sans-serif; max-width: 700px; margin: 3rem auto; padding: 0 1rem; line-height: 1.5; }}
-  code {{ background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }}
-  .error {{ color: #b00020; }}
-  .button {{ display: inline-block; background: #1a73e8; color: #fff; padding: 0.6rem 1.2rem;
-             border-radius: 4px; text-decoration: none; }}
-</style>
-</head>
-<body>
-{body}
-</body>
-</html>""")
-
-
-@router.get("/")
-def info(error: str | None = None):
-    name = settings.service_name()
-    domain = _allowed_domain()
-    msg = _error_message(error)
-    error_html = f'<p class="error">{msg}</p>' if msg else ""
-    return _page(f"{name} — Get Access", f"""
-<h1>{name}</h1>
-<p>Sign in with your Google account to get a personal API token for the
-VS Code <a href="https://marketplace.visualstudio.com/items?itemName=Continue.continue">Continue</a> extension.</p>
-<p>Only accounts on <strong>@{domain}</strong> are allowed — make sure you sign in with that
-account below.</p>
-{error_html}
-<p><a class="button" href="/register/google/login">Sign in with Google</a></p>
-""")
 
 
 @router.get("/google/login")
@@ -86,15 +48,15 @@ async def google_callback(request: Request):
 
     email = userinfo.get("email")
     if not email or not userinfo.get("email_verified"):
-        return RedirectResponse("/register/?error=domain_not_allowed")
+        return RedirectResponse("/?error=domain_not_allowed")
 
     email = email.lower()
     domain = email.rsplit("@", 1)[-1]
     if domain != _allowed_domain():
-        return RedirectResponse("/register/?error=domain_not_allowed")
+        return RedirectResponse("/?error=domain_not_allowed")
 
     if db.is_blocked(email):
-        return RedirectResponse("/register/?error=blocked")
+        return RedirectResponse("/?error=blocked")
 
     now = int(time.time())
     user = db.get_user(email)
@@ -142,26 +104,19 @@ def _auth_from_cookie(request: Request) -> tuple[str, int]:
 
 @router.get("/success")
 def success(request: Request):
-    email, _ = _auth_from_cookie(request)
-    name = settings.service_name()
-    return _page(f"{name} — Success", f"""
-<h1>You're all set, {email}</h1>
-<p><a class="button" href="/register/config">Download Continue Config</a></p>
-
-<h2>Setting up Continue</h2>
-<p>Save the downloaded file as <code>config.yaml</code> in your VS Code Continue extension's config directory
-(install the extension first if you haven't), replacing its existing configuration. It points Continue at
-this server's tab-completion and chat endpoints using your personal token.</p>
-""")
-
-
-@router.get("/config")
-def download_config(request: Request):
     email, issue_date = _auth_from_cookie(request)
-    filled = render_continue_config(email, issue_date)
-    filename = f"hound-coder-continue-config-{email}.yaml"
-    return Response(
-        content=filled,
-        media_type="application/yaml",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    jwt_value = encode_jwt(email, issue_date)
+    placeholders = build_placeholders(api_key=jwt_value)
+    sections = load_sections(placeholders)
+    masked = jwt_value[:TOKEN_PREFIX_LEN] + "…"
+    return templates.TemplateResponse(
+        request,
+        "success.html",
+        {
+            "service_name": settings.service_name(),
+            "email": email,
+            "token_masked": masked,
+            "token_json": json.dumps(jwt_value),
+            "sections": sections,
+        },
     )

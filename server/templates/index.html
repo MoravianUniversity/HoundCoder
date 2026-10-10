@@ -8,10 +8,28 @@
   code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; }
   h1 { margin-bottom: 0; }
   .sub { color: #666; margin-top: 0.2rem; }
+  .error { color: #b00020; }
+  .button { display: inline-block; background: #1a73e8; color: #fff; padding: 0.6rem 1.2rem;
+             border-radius: 4px; text-decoration: none; border: none; cursor: pointer; }
 </style>
 </head>
 <body>
 <h1>{{ service_name }}</h1>
+
+<h2>Getting access</h2>
+{% if allowed_domain %}
+<p>Sign in with your Google account to get a personal API token for agents and IDEs that speak
+OpenAI-compatible APIs.</p>
+<p>Only accounts on <strong>@{{ allowed_domain }}</strong> are allowed — make sure you sign in with that
+account below.</p>
+{% if error_message %}
+<p class="error">{{ error_message }}</p>
+{% endif %}
+<p><a class="button" href="/register/google/login">Sign in with Google</a></p>
+{% else %}
+<p>Self-service registration is not configured yet. Ask an administrator for access.</p>
+{% endif %}
+
 <p class="sub">Locally hosted LLM stack for coding assistance, exposing separate endpoints for code completion and agent chat. This can be used with several Agents/IDEs with AI support, such as:
   <ul>
     <li><a href="https://zed.dev/">Zed</a> - both tab-completion and agent chat</li>
@@ -20,20 +38,10 @@
   </ul>
 </p>
 
-<h2>Getting access</h2>
-{% if allowed_domain %}
-<p>Sign in with a Google account on <strong>@{{ allowed_domain }}</strong> to
-<a href="/register/">get your token</a> and instructions for your agent/IDE.</p>
-{% else %}
-<p>Self-service registration is not configured yet. Ask an administrator for access, or visit
-<a href="/register/">/register/</a> once Google OAuth is set up.</p>
-{% endif %}
-
 <h2>Endpoints</h2>
 <ul>
   <li><code>/tab/</code> &mdash; OpenAI-compatible code completion endpoint (no /v1 prefix)</li>
   <li><code>/chat/</code> &mdash; OpenAI-compatible chat/agent endpoint (no /v1 prefix)</li>
-  <li><code>/register/</code> &mdash; self-service registration via Google sign-in{% if allowed_domain %} (@{{ allowed_domain }}){% endif %}</li>
   <li><code>/admin/</code> &mdash; admin-only user &amp; token management (requires an admin token)</li>
 </ul>
 </body>
